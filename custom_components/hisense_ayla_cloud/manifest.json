@@ -1,0 +1,13 @@
+{
+  "domain": "hisense_ayla_cloud",
+  "name": "Hisense Ayla Cloud",
+  "version": "0.1.0",
+  "documentation": "https://github.com/example/hisense-ayla-cloud",
+  "issue_tracker": "https://github.com/example/hisense-ayla-cloud/issues",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [],
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "requirements": []
+}

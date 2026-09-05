@@ -1,0 +1,7 @@
+{
+  "name": "Hisense Ayla Cloud",
+  "content_in_root": false,
+  "filename": "hisense_ayla_cloud",
+  "render_readme": true,
+  "homeassistant": "2024.1.0"
+}

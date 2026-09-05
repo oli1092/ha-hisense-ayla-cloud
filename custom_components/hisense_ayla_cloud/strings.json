@@ -1,0 +1,35 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "HiSmart Life cloud",
+        "description": "Cloud-only setup for Hisense AEH-W4E1/W4B1 devices.",
+        "data": {
+          "app_code": "Region/app code",
+          "email": "HiSmart Life email",
+          "password": "HiSmart Life password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate HiSmart Life",
+        "description": "The Ayla refresh token was rejected. Enter your password again.",
+        "data": {"password": "HiSmart Life password"}
+      }
+    },
+    "error": {
+      "invalid_auth": "The credentials were rejected.",
+      "cannot_connect": "Could not connect to the Ayla cloud.",
+      "no_devices": "No devices were found in this HiSmart Life account.",
+      "unsupported_app": "Only the hisense-eu app code is enabled in this prototype."
+    },
+    "abort": {"already_configured": "This HiSmart Life account is already configured."}
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Hisense Ayla Cloud options",
+        "data": {"scan_interval": "Polling interval (seconds)"}
+      }
+    }
+  }
+}
