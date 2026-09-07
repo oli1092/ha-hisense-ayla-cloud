@@ -51,9 +51,11 @@ class HisenseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 try:
                     await client.async_login(user_input[CONF_PASSWORD])
                     devices = await client.async_list_devices()
-                except AylaAuthError:
+                except AylaAuthError as err:
+                    _LOGGER.warning("HiSmart Life login was rejected: %s", err)
                     errors["base"] = "invalid_auth"
-                except AylaConnectionError:
+                except AylaConnectionError as err:
+                    _LOGGER.warning("HiSmart Life cloud could not be reached: %s", err)
                     errors["base"] = "cannot_connect"
                 except Exception:  # noqa: BLE001 - flow must remain renderable
                     _LOGGER.exception("Unexpected Hisense Ayla setup failure")
@@ -107,9 +109,11 @@ class HisenseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 await client.async_login(user_input[CONF_PASSWORD])
                 devices = await client.async_list_devices()
-            except AylaAuthError:
+            except AylaAuthError as err:
+                _LOGGER.warning("HiSmart Life reauthentication was rejected: %s", err)
                 errors["base"] = "invalid_auth"
-            except AylaConnectionError:
+            except AylaConnectionError as err:
+                _LOGGER.warning("HiSmart Life cloud could not be reached during reauth: %s", err)
                 errors["base"] = "cannot_connect"
             else:
                 data = {
