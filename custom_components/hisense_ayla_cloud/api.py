@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -10,6 +11,8 @@ from typing import Any
 from aiohttp import ClientError, ClientResponse, ClientSession
 
 from .const import EU_DEVICES_SERVER, EU_USER_SERVER
+
+_LOGGER = logging.getLogger(__name__)
 
 _PUBLIC_HEADERS = {
     "Accept": "application/json",
@@ -200,13 +203,17 @@ class AylaCloudClient:
         except ClientError as err:
             raise AylaConnectionError("Ayla request failed") from err
         if response.status in (401, 403):
+            detail = await _error_detail(response)
             response.release()
+            _LOGGER.warning("Ayla authentication rejected: host=%s status=%s detail=%s", url.split("/")[2], response.status, detail)
             raise AylaAuthError("Ayla authentication rejected")
         if response.status == 429:
             retry_after = response.headers.get("Retry-After")
             response.release()
             raise AylaRateLimitError(int(retry_after) if retry_after and retry_after.isdigit() else None)
         if response.status >= 400:
+            detail = await _error_detail(response)
+            _LOGGER.debug("Ayla request rejected: host=%s status=%s detail=%s", url.split("/")[2], response.status, detail)
             response.release()
             raise AylaConnectionError(f"Ayla returned HTTP {response.status}")
         return response
@@ -232,3 +239,19 @@ class AylaCloudClient:
             str(data["refresh_token"]),
             datetime.now(timezone.utc) + timedelta(seconds=expires_seconds),
         )
+
+
+async def _error_detail(response: ClientResponse) -> str | None:
+    """Extract only a short non-secret error field for debug diagnostics."""
+
+    try:
+        payload = await response.json(content_type=None)
+    except (ValueError, ClientError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    for key in ("code", "message", "error"):
+        value = payload.get(key)
+        if isinstance(value, str) and len(value) <= 120:
+            return value
+    return None
