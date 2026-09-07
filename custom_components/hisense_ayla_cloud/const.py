@@ -23,7 +23,7 @@ EU_DEVICES_SERVER = "ads-eu.aylanetworks.com"
 # required to address the Ayla API, but are never logged or exposed in
 # diagnostics. User passwords and cloud tokens are never stored here.
 HISENSE_EU_APP_ID = "Hisense-mw-id"
-HISENSE_EU_APP_SECRET = "Hisense-mw-wO1LLP8rWPr2cIeqvFaI-0m0z60"
+HISENSE_EU_APP_SECRET = "Hisense-wO1LLP8rWPr2cIeqvFaI-0m0z60"
 
 PROPERTY_POWER = "t_power"
 PROPERTY_TARGET_TEMP = "t_temp"

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import quote
 
-from aiohttp import ClientError, ClientResponse, ClientSession
+from aiohttp import ClientError, ClientResponse, ClientSession, ClientTimeout
 
 from .const import EU_DEVICES_SERVER, EU_USER_SERVER
 
@@ -46,21 +48,9 @@ class AylaConnectionError(AylaError):
 class AylaTokens:
     """Runtime authentication state."""
 
-    access_token: str
-    refresh_token: str
+    access_token: str = field(repr=False)
+    refresh_token: str = field(repr=False)
     expires_at: datetime
-
-
-def build_hisense_eu_app_secret() -> str:
-    """Return the HiSmart Life application secret without logging it."""
-
-    # The reference app derives this value from its embedded byte secret. Keep
-    # the derivation isolated so future app-code support does not leak values.
-    import base64
-
-    raw = b"\xc0\xedK,\xff+X\xfa\xf6p\x87\xaa\xbcV\x88\xfbI\xb4\xcf\xad"
-    encoded = base64.urlsafe_b64encode(raw).decode().rstrip("=")
-    return f"Hisense-mw-{encoded}"
 
 
 class AylaCloudClient:
@@ -73,6 +63,8 @@ class AylaCloudClient:
         self._app_secret = app_secret
         self._tokens: AylaTokens | None = None
         self._refresh_lock = asyncio.Lock()
+        self.on_token_change: Callable[[str], None] | None = None
+        self._command_locks: dict[str, asyncio.Lock] = {}
 
     @property
     def refresh_token(self) -> str | None:
@@ -152,7 +144,23 @@ class AylaCloudClient:
                 properties[name] = dict(prop)
         return properties
 
-    async def _request_json(self, method: str, url: str) -> Any:
+    async def async_write_property(self, dsn: str, name: str, value: int) -> None:
+        """Submit one cloud datapoint; never retry ambiguous network failures."""
+        await self._request_json(
+            "POST",
+            f"https://{EU_DEVICES_SERVER}/apiv1/dsns/{quote(dsn, safe='')}/properties/{quote(name, safe='')}/datapoints.json",
+            json={"datapoint": {"value": value}},
+        )
+
+    async def async_command(self, dsn: str, command: str, value: Any) -> None:
+        """Serialize fresh read/modify/write operations for one device."""
+        from .commands import build_command
+        async with self._command_locks.setdefault(dsn, asyncio.Lock()):
+            properties = await self.async_get_properties(dsn)
+            name, packed = build_command(properties, command, value)
+            await self.async_write_property(dsn, name, packed)
+
+    async def _request_json(self, method: str, url: str, **kwargs: Any) -> Any:
         """Make an authenticated request, refreshing and retrying once on 401."""
 
         await self.async_refresh_auth()
@@ -163,8 +171,10 @@ class AylaCloudClient:
                     method,
                     url,
                     headers={**_PUBLIC_HEADERS, "Authorization": f"auth_token {token}"},
+                    timeout=ClientTimeout(total=30),
+                    **kwargs,
                 )
-            except ClientError as err:
+            except (ClientError, TimeoutError) as err:
                 raise AylaConnectionError("Ayla request failed") from err
             if response.status in (401, 403):
                 response.release()
@@ -182,6 +192,9 @@ class AylaCloudClient:
                 status = response.status
                 response.release()
                 raise AylaConnectionError(f"Ayla returned HTTP {status}")
+            if method == "POST":
+                response.release()
+                return None
             return await self._json(response)
         raise AylaAuthError("Ayla access token rejected")
 
@@ -199,21 +212,19 @@ class AylaCloudClient:
 
     async def _request_raw(self, method: str, url: str, **kwargs: Any) -> ClientResponse:
         try:
-            response = await self._session.request(method, url, **kwargs)
-        except ClientError as err:
+            response = await self._session.request(method, url, timeout=ClientTimeout(total=30), **kwargs)
+        except (ClientError, TimeoutError) as err:
             raise AylaConnectionError("Ayla request failed") from err
         if response.status in (401, 403):
-            detail = await _error_detail(response)
             response.release()
-            _LOGGER.warning("Ayla authentication rejected: host=%s status=%s detail=%s", url.split("/")[2], response.status, detail)
+            _LOGGER.debug("Ayla authentication rejected: HTTP %s", response.status)
             raise AylaAuthError("Ayla authentication rejected")
         if response.status == 429:
             retry_after = response.headers.get("Retry-After")
             response.release()
             raise AylaRateLimitError(int(retry_after) if retry_after and retry_after.isdigit() else None)
         if response.status >= 400:
-            detail = await _error_detail(response)
-            _LOGGER.debug("Ayla request rejected: host=%s status=%s detail=%s", url.split("/")[2], response.status, detail)
+            _LOGGER.debug("Ayla request rejected: HTTP %s", response.status)
             response.release()
             raise AylaConnectionError(f"Ayla returned HTTP {response.status}")
         return response
@@ -221,7 +232,7 @@ class AylaCloudClient:
     async def _json(self, response: ClientResponse) -> Any:
         try:
             return await response.json(content_type=None)
-        except (ValueError, ClientError) as err:
+        except (ValueError, ClientError, TimeoutError) as err:
             raise AylaConnectionError("Invalid Ayla JSON response") from err
         finally:
             response.release()
@@ -239,19 +250,5 @@ class AylaCloudClient:
             str(data["refresh_token"]),
             datetime.now(timezone.utc) + timedelta(seconds=expires_seconds),
         )
-
-
-async def _error_detail(response: ClientResponse) -> str | None:
-    """Extract only a short non-secret error field for debug diagnostics."""
-
-    try:
-        payload = await response.json(content_type=None)
-    except (ValueError, ClientError):
-        return None
-    if not isinstance(payload, dict):
-        return None
-    for key in ("code", "message", "error"):
-        value = payload.get(key)
-        if isinstance(value, str) and len(value) <= 120:
-            return value
-    return None
+        if self.on_token_change is not None:
+            self.on_token_change(self._tokens.refresh_token)

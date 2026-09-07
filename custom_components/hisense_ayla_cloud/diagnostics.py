@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import CONF_EMAIL, CONF_REFRESH_TOKEN, REDACTED
 from .coordinator import HisenseCoordinator
+from .safe_diagnostics import safe_property
 
 
 async def async_get_config_entry_diagnostics(
@@ -22,12 +23,12 @@ async def async_get_config_entry_diagnostics(
         devices.append(
             {
                 "dsn": REDACTED,
-                "name": snapshot.name,
-                "product_name": snapshot.product_name,
+                "name": REDACTED,
+                "product_name": REDACTED,
                 "available": snapshot.available,
                 "error": snapshot.error,
                 "properties": {
-                    name: _safe_property(prop) for name, prop in snapshot.properties.items()
+                    name: safe_property(prop) for name, prop in snapshot.properties.items()
                 },
             }
         )
@@ -43,29 +44,3 @@ async def async_get_config_entry_diagnostics(
         "local_callback": False,
         "local_ip_access": False,
     }
-
-
-def _safe_property(prop: dict[str, Any]) -> dict[str, Any]:
-    """Keep useful raw metadata while excluding arbitrary secret fields."""
-
-    allowed = {
-        "name",
-        "value",
-        "base_type",
-        "read_only",
-        "direction",
-        "possible_values",
-        "allowed_values",
-        "enum_values",
-        "metadata",
-        "updated_at",
-    }
-    safe = {key: value for key, value in prop.items() if key in allowed}
-    if isinstance(safe.get("metadata"), dict):
-        metadata = safe["metadata"]
-        safe["metadata"] = {
-            key: value
-            for key, value in metadata.items()
-            if key in {"values", "possible_values", "allowed_values", "enum_values"}
-        }
-    return safe

@@ -77,7 +77,7 @@ class HisenseCoordinator(DataUpdateCoordinator[dict[str, DeviceSnapshot]]):
             )
 
         if failures == len(self.device_info):
-            self._failure_count += 1
+            self._failure_count = min(self._failure_count + 1, 7)
             self.update_interval = min(
                 self._base_scan_interval * (2**self._failure_count),
                 timedelta(hours=1),
@@ -87,7 +87,7 @@ class HisenseCoordinator(DataUpdateCoordinator[dict[str, DeviceSnapshot]]):
                 self._failure_logged = True
             raise UpdateFailed("All Hisense devices are unavailable")
         if failures:
-            self._failure_count += 1
+            self._failure_count = min(self._failure_count + 1, 7)
             self.update_interval = min(
                 self._base_scan_interval * (2**self._failure_count),
                 timedelta(hours=1),

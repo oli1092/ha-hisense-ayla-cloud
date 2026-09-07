@@ -34,6 +34,14 @@ async def async_setup_entry(hass, entry) -> bool:
     if not refresh_token:
         raise ConfigEntryAuthFailed("Missing Ayla refresh token")
     client.restore_refresh_token(refresh_token)
+
+    def persist_token(token):
+        if token != entry.data.get(CONF_REFRESH_TOKEN):
+            hass.config_entries.async_update_entry(
+                entry, data={**entry.data, CONF_REFRESH_TOKEN: token}
+            )
+
+    client.on_token_change = persist_token
     interval = entry.options.get(
         CONF_SCAN_INTERVAL,
         entry.data.get(CONF_SCAN_INTERVAL, 60),
@@ -47,11 +55,21 @@ async def async_setup_entry(hass, entry) -> bool:
     )
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
-    if client.refresh_token and client.refresh_token != refresh_token:
-        hass.config_entries.async_update_entry(
-            entry, data={**entry.data, CONF_REFRESH_TOKEN: client.refresh_token}
-        )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    previous_options = dict(entry.options)
+
+    async def update_options(hass, updated_entry):
+        nonlocal previous_options
+        if dict(updated_entry.options) == previous_options:
+            return
+        previous_options = dict(updated_entry.options)
+        coordinator.update_interval = timedelta(
+            seconds=int(updated_entry.options.get(CONF_SCAN_INTERVAL, 60))
+        )
+        coordinator._base_scan_interval = coordinator.update_interval
+        await coordinator.async_request_refresh()
+
+    entry.async_on_unload(entry.add_update_listener(update_options))
     return True
 
 

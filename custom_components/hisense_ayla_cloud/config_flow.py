@@ -11,7 +11,7 @@ from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import AylaAuthError, AylaCloudClient, AylaConnectionError
+from .api import AylaAuthError, AylaCloudClient, AylaConnectionError, AylaRateLimitError
 from .const import (
     CONF_APP_CODE,
     CONF_DEVICE_DSNS,
@@ -54,7 +54,7 @@ class HisenseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 except AylaAuthError as err:
                     _LOGGER.warning("HiSmart Life login was rejected: %s", err)
                     errors["base"] = "invalid_auth"
-                except AylaConnectionError as err:
+                except (AylaConnectionError, AylaRateLimitError) as err:
                     _LOGGER.warning("HiSmart Life cloud could not be reached: %s", err)
                     errors["base"] = "cannot_connect"
                 except Exception:  # noqa: BLE001 - flow must remain renderable
@@ -112,7 +112,7 @@ class HisenseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except AylaAuthError as err:
                 _LOGGER.warning("HiSmart Life reauthentication was rejected: %s", err)
                 errors["base"] = "invalid_auth"
-            except AylaConnectionError as err:
+            except (AylaConnectionError, AylaRateLimitError) as err:
                 _LOGGER.warning("HiSmart Life cloud could not be reached during reauth: %s", err)
                 errors["base"] = "cannot_connect"
             else:
@@ -133,14 +133,11 @@ class HisenseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: config_entries.ConfigEntry):
-        return HisenseOptionsFlow(config_entry)
+        return HisenseOptionsFlow()
 
 
 class HisenseOptionsFlow(config_entries.OptionsFlow):
     """Adjust cloud polling without repeating login."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         if user_input is not None:
