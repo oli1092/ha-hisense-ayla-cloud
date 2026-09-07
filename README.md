@@ -11,6 +11,16 @@ port, LAN-key exchange, or connection to device IP addresses is required.
 devices. End-to-end validation of this version inside Home Assistant is still
 pending. This unofficial project is not affiliated with Hisense or Ayla.
 
+## AI development disclosure
+
+This repository, including its code and documentation, was created with substantial
+assistance from AI (OpenAI Codex), guided by the project owner. AI-generated code
+can contain errors, and passing automated tests does not establish production
+reliability. Validation is limited to the tests and device observations documented
+here; do not assume a comprehensive human code review or independent audit.
+Review and test the integration in your own environment before relying on it for
+unattended climate control.
+
 ## Compatibility
 
 | Item | Status |
