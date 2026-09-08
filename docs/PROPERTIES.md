@@ -39,9 +39,10 @@ Different raw values can therefore encode identical temperatures.
 
 The reference places power at bit 6 and mode in bits 9–11. Mode codes are
 0=fan, 1=heat, 2=cool, 3=dry and 4=auto. Only cooling has been observed in the
-test environment; reference modes are not exposed unconditionally.
-Fan, Eco, quiet and swing fields exist in the reference but are not implemented
-or verified here. Fahrenheit packing is not validated.
+test environment. Version 0.3.0 exposes all reference modes on packed-register
+devices for explicit testing. Fan, Eco, quiet and swing fields are now exposed
+experimentally but have not been verified on these devices. Fahrenheit packing
+is not validated.
 
 ## Requests and consistency
 

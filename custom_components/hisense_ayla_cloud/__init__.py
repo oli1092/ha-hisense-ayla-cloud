@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-PLATFORMS = ["climate"]
+PLATFORMS = ["climate", "sensor", "binary_sensor", "switch", "select"]
 
 
 async def async_setup_entry(hass, entry) -> bool:
-    """Set up a cloud account and its read-only entities."""
+    """Set up a cloud account and its entities."""
 
     from datetime import timedelta
 

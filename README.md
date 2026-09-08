@@ -7,9 +7,9 @@ Home Assistant and the air conditioners do not need to share a network. All
 control and status requests use the Ayla cloud: no local HTTP callback, callback
 port, LAN-key exchange, or connection to device IP addresses is required.
 
-**Experimental — version 0.2.0.** The cloud client has been tested with real
-devices. End-to-end validation of this version inside Home Assistant is still
-pending. This unofficial project is not affiliated with Hisense or Ayla.
+**Experimental — version 0.3.0.** Basic climate entities have been loaded in Home
+Assistant. Additional controls in this version are reference-based and need device
+validation. This unofficial project is not affiliated with Hisense or Ayla.
 
 ## AI development disclosure
 
@@ -41,7 +41,10 @@ automations controlling the same device through both integrations.
 
 ## Features and validation
 
-One `climate` entity is created per discovered device.
+Each device has a climate entity, indoor-temperature sensor, power binary sensor
+and raw diagnostic entities for its cloud properties. Extra controls are marked
+experimental and are created only when the corresponding direct property or
+packed register is present. No additional polling is needed for these entities.
 
 | Feature | Current status |
 | --- | --- |
@@ -51,15 +54,22 @@ One `climate` entity is created per discovered device.
 | Target temperature | Packed value decoded; 24/25/26 °C confirmed against the app |
 | Set temperature | Whole-degree Celsius, 16–30 °C; cloud write and app confirmation tested |
 | Turn on / off | Cloud submission and readback tested on one device |
-| HVAC modes | Observed or advertised modes only; currently off/cool on test devices |
+| HVAC modes | All reference modes available experimentally for packed-register devices; only cooling tested |
 | Cooling command | Accepted and read back while already in cooling mode; transition from another mode not tested |
 | Polling | Default 60 seconds; configurable from 30 to 3,600 seconds |
 | Failure handling | Backoff, availability and reauth implemented; HA runtime validation pending |
 | Diagnostics | Identifiers redacted and property values conservatively filtered |
 
-Fan speed, swing, Eco/Quiet/Turbo switches, Sleep selects, and separate sensor or
-binary-sensor entities are **not implemented yet**. Humidity is available through
-the climate entity only when the cloud supplies a value.
+Experimental controls include fan speed, Eco, Quiet, Turbo and vertical/horizontal
+swing. Backlight and 8-degree heating require their own cloud properties. Sleep
+and swing-angle selects appear if their properties exist, but commands are refused
+when cloud metadata marks them read-only (including Sleep on the tested devices).
+Backlight uses the reference's inverted polarity. Validate one control at a time.
+
+All received boolean properties have raw binary-sensor representations; other
+properties have raw sensors. Null values stay unknown, and raw measurements do
+not claim unverified units or energy statistics. Arbitrary string/object values
+remain unknown except the version string. Raw error flags do not infer fault polarity.
 
 ## HACS installation
 

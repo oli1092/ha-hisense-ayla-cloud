@@ -4,10 +4,27 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
+from math import isfinite
 
 from .const import HVAC_MODE_MAP, PROPERTY_POWER, PROPERTY_WORK_MODE
 
 HVAC_OFF = "off"
+
+
+def indoor_temperature(snapshot) -> float | None:
+    value = snapshot.value("f_temp_in")
+    if type(value) not in (int, float):
+        return None
+    return float(value) if isfinite(value) else None
+
+
+def power_state(snapshot) -> bool | None:
+    value = snapshot.value(PROPERTY_POWER)
+    if type(value) in (bool, int) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        return {"ON": True, "OFF": False, "1": True, "0": False}.get(value.upper())
+    return None
 # Numeric encoding used by the reference integration's AcWorkMode enum.
 NUMERIC_HVAC_MODES = {0: "fan_only", 1: "heat", 2: "cool", 3: "dry", 4: "auto"}
 

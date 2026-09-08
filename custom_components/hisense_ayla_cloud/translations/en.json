@@ -1,4 +1,8 @@
 {
+  "entity": {
+    "sensor": {"indoor_temperature": {"name": "Indoor temperature"}},
+    "binary_sensor": {"power": {"name": "Power"}}
+  },
   "config": {
     "step": {
       "user": {

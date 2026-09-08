@@ -45,6 +45,33 @@ def test_invalid_temperature_rejected(value):
         build_command(properties(), "temperature", value)
 
 
-def test_unobserved_mode_rejected():
+def test_invalid_mode_rejected():
     with pytest.raises(ValueError):
-        build_command(properties(), "mode", "heat")
+        build_command(properties(), "mode", "invalid")
+
+
+@pytest.mark.parametrize("field,bit", [("eco", 15), ("quiet", 29), ("turbo", 13),
+    ("vertical_swing", 25), ("horizontal_swing", 27)])
+def test_experimental_flag_preserves_temperature_and_power(field, bit):
+    _, raw = build_command(properties(), field, True)
+    assert raw & (1 << bit)
+    assert raw & (1 << (bit - 1))
+    assert (raw >> 17) & 63 == 25
+    assert (raw >> 6) & 1 == 0
+    _, cleared = build_command(properties(raw), field, False)
+    assert not cleared & (1 << bit)
+
+
+def test_direct_read_only_sleep_cannot_be_written():
+    with pytest.raises(ValueError):
+        build_command({"t_sleep": {"value": 0, "read_only": True}}, "t_sleep", "1")
+
+
+def test_backlight_inverted_reference_mapping():
+    assert build_command({"t_backlight": {"read_only": False}}, "t_backlight", "on") == ("t_backlight", 0)
+
+
+def test_fan_command():
+    _, raw = build_command(properties(), "fan", "low")
+    assert (raw >> 1) & 15 == 6
+    assert (raw >> 17) & 63 == 25

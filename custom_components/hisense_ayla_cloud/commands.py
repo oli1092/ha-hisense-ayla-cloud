@@ -1,9 +1,15 @@
 """Conservative packed commands based on the Hisense reference register."""
 
 from .models import DeviceSnapshot, climate_modes, NUMERIC_HVAC_MODES
+from .experimental import PACKED_FIELDS, FAN_MODES, DIRECT_OPTIONS
 
 
 def build_command(properties, command, value):
+    if command in DIRECT_OPTIONS:
+        prop = properties.get(command, {})
+        if prop.get("read_only") is not False or value not in DIRECT_OPTIONS[command]:
+            raise ValueError("Property is read-only, absent or the option is invalid")
+        return command, DIRECT_OPTIONS[command][value]
     prop = properties.get("t_control_value", {})
     control = prop.get("value")
     if prop.get("read_only") is not False or type(control) is not int:
@@ -23,13 +29,25 @@ def build_command(properties, command, value):
         control = (control & ~(3 << 5)) | (((int(value) << 1) | 1) << 5)
     elif command == "mode":
         snapshot = DeviceSnapshot("", "", "", properties)
-        if value == "off" or value not in climate_modes(snapshot):
+        if value == "off" or value not in NUMERIC_HVAC_MODES.values():
             raise ValueError("Mode not observed or advertised by this device")
         raw = next((key for key, mode in NUMERIC_HVAC_MODES.items() if mode == value), None)
         if raw is None:
             raise ValueError("Unsupported mode")
         control = (control & ~(15 << 8)) | (((raw << 1) | 1) << 8)
         control = (control & ~(3 << 5)) | (3 << 5)
+    elif command in PACKED_FIELDS:
+        offset, width = PACKED_FIELDS[command]
+        if command == "fan":
+            if value not in FAN_MODES:
+                raise ValueError("Unsupported fan speed")
+            raw = FAN_MODES[value]
+        else:
+            if type(value) is not bool:
+                raise ValueError("Switch value must be boolean")
+            raw = int(value)
+        mask = ((1 << (width + 1)) - 1) << (offset - 1)
+        control = (control & ~mask) | (raw << offset) | (1 << (offset - 1))
     else:
         raise ValueError("Unknown command")
     return "t_control_value", control

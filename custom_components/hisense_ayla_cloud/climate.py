@@ -21,6 +21,8 @@ from .const import (
 from .coordinator import HisenseCoordinator
 from .models import DeviceSnapshot, climate_hvac_mode, climate_modes, target_temperature
 from .api import AylaError
+from .experimental import FAN_MODES, packed_value, has_packed
+from .models import NUMERIC_HVAC_MODES
 
 
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
@@ -47,7 +49,7 @@ class HisenseCloudClimate(CoordinatorEntity[HisenseCoordinator], ClimateEntity):
         snapshot = self._snapshot
         if snapshot and snapshot.property("t_control_value").get("read_only") is False:
             return (ClimateEntityFeature.TARGET_TEMPERATURE |
-                    ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF)
+                    ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.FAN_MODE)
         return ClimateEntityFeature(0)
 
     async def _command(self, command, value):
@@ -66,6 +68,18 @@ class HisenseCloudClimate(CoordinatorEntity[HisenseCoordinator], ClimateEntity):
 
     async def async_set_temperature(self, **kwargs):
         await self._command("temperature", kwargs[ATTR_TEMPERATURE])
+
+    @property
+    def fan_modes(self):
+        return list(FAN_MODES) if has_packed(self._snapshot) else []
+
+    @property
+    def fan_mode(self):
+        value = packed_value(self._snapshot, "fan")
+        return next((key for key, raw in FAN_MODES.items() if raw == value), None)
+
+    async def async_set_fan_mode(self, fan_mode):
+        await self._command("fan", fan_mode)
 
     async def async_set_hvac_mode(self, hvac_mode):
         if hvac_mode == "off":
@@ -112,6 +126,8 @@ class HisenseCloudClimate(CoordinatorEntity[HisenseCoordinator], ClimateEntity):
 
     @property
     def hvac_modes(self) -> list[str]:
+        if has_packed(self._snapshot):
+            return ["off", *NUMERIC_HVAC_MODES.values()]
         return climate_modes(self._snapshot) if self._snapshot else []
 
     @property
