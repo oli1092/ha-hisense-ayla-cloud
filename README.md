@@ -77,7 +77,7 @@ The repository must be accessible to HACS. This is a custom repository; it is
 not a claim of inclusion in the default HACS catalog.
 
 1. Open HACS and choose **Custom repositories** from the three-dot menu.
-2. Add `https://github.com/oli1092/HiSmartLife-HA-Integration`, type **Integration**.
+2. Add `https://github.com/oli1092/ha-hisense-ayla-cloud`, type **Integration**.
 3. Find **Hisense Ayla Cloud** and download it.
 4. Restart Home Assistant.
 5. Open **Settings → Devices & services → Add integration** and select **Hisense Ayla Cloud**.
@@ -99,8 +99,8 @@ poll, plus authentication and command requests.
 In an interactive terminal with Python 3.12+:
 
 ```shell
-git clone https://github.com/oli1092/HiSmartLife-HA-Integration.git
-cd HiSmartLife-HA-Integration
+git clone https://github.com/oli1092/ha-hisense-ayla-cloud.git
+cd ha-hisense-ayla-cloud
 python -m pip install aiohttp
 python scripts/test_cloud.py
 ```
